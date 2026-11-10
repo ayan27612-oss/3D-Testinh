@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>3D Physics Playground</title>
     <style>
       html, body {
@@ -11,7 +11,9 @@
         overflow: hidden;
         height: 100%;
         font-family: system-ui, sans-serif;
+        overscroll-behavior: none;
       }
+      canvas { display: block; touch-action: none; }
       #hud {
         position: fixed;
         top: 12px;
@@ -43,7 +45,8 @@
       #fs-btn {
         position: fixed;
         bottom: 12px;
-        right: 12px;
+        left: 50%;
+        transform: translateX(-50%);
         background: rgba(0, 0, 0, 0.45);
         color: #fff;
         border: 1px solid rgba(255, 255, 255, 0.35);
@@ -54,20 +57,96 @@
         cursor: pointer;
         user-select: none;
         z-index: 10;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
       }
       #fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
-      #fs-btn:active { transform: scale(0.97); }
+      #fs-btn:active { transform: translateX(-50%) scale(0.97); }
+      #touch-ui { display: none; }
+      body.touch #touch-ui { display: block; }
+      #joy-base {
+        position: fixed;
+        left: max(18px, env(safe-area-inset-left));
+        bottom: max(18px, env(safe-area-inset-bottom));
+        width: 126px;
+        height: 126px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        z-index: 10;
+        touch-action: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #joy-knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.55);
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .tbtn {
+        position: fixed;
+        z-index: 10;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #fff;
+        font-family: system-ui, sans-serif;
+        font-size: 12px;
+        touch-action: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .tbtn:active { background: rgba(255, 255, 255, 0.25); }
+      #btn-jump {
+        right: max(18px, env(safe-area-inset-right));
+        bottom: max(20px, env(safe-area-inset-bottom));
+        width: 86px;
+        height: 86px;
+        font-size: 15px;
+        font-weight: bold;
+        background: rgba(231, 76, 60, 0.8);
+      }
+      #btn-throw { right: 128px; bottom: 24px; width: 64px; height: 64px; }
+      #btn-box { right: 30px; bottom: 126px; width: 60px; height: 60px; }
+      #btn-sphere { right: 120px; bottom: 116px; width: 54px; height: 54px; font-size: 11px; }
+      #btn-reset { top: 78px; right: 12px; width: auto; height: auto; padding: 8px 12px; border-radius: 8px; }
+      #hud-touch { display: none; }
+      body.touch #hud-touch { display: inline; }
+      body.touch #hud-kb { display: none; }
     </style>
   </head>
   <body>
     <div id="hud">
       <b>Rolling ball playground</b><br />
-      <b>WASD / Arrows</b> — move &nbsp; <b>Space</b> — jump<br />
-      <b>Click</b> — throw ball &nbsp; <b>R</b> — reset scene<br />
-      <b>1</b> — spawn box &nbsp; <b>2</b> — spawn sphere &nbsp; <b>Drag</b> — orbit camera &nbsp; <b>Scroll</b> — zoom<br />
-      <b>F</b> — fullscreen (landscape lock on mobile)
+      <span id="hud-kb">
+        <b>WASD / Arrows</b> — move &nbsp; <b>Space</b> — jump<br />
+        <b>Click</b> — throw ball &nbsp; <b>R</b> — reset scene<br />
+        <b>1</b> — spawn box &nbsp; <b>2</b> — spawn sphere &nbsp; <b>Drag</b> — orbit camera &nbsp; <b>Scroll</b> — zoom<br />
+        <b>F</b> — fullscreen (landscape lock on mobile)
+      </span>
+      <span id="hud-touch">
+        <b>Joystick</b> — move &nbsp; <b>Jump</b> — jump<br />
+        <b>Throw</b> — launch ball &nbsp; <b>Tap</b> — throw at spot<br />
+        <b>Drag</b> — orbit camera &nbsp; <b>Pinch</b> — zoom<br />
+        <b>Fullscreen</b> button locks landscape
+      </span>
     </div>
     <div id="score">Objects: <span id="obj-count">0</span><br />Score: <span id="score-count">0</span></div>
+    <div id="touch-ui">
+      <div id="joy-base"><div id="joy-knob"></div></div>
+      <button id="btn-jump" class="tbtn">Jump</button>
+      <button id="btn-throw" class="tbtn">Throw</button>
+      <button id="btn-box" class="tbtn">Box</button>
+      <button id="btn-sphere" class="tbtn">Ball</button>
+      <button id="btn-reset" class="tbtn">Reset</button>
+    </div>
     <button id="fs-btn">Fullscreen</button>
     <script type="module" src="/src/main.js"></script>
   </body>

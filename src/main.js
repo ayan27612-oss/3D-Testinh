@@ -233,6 +233,91 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 
+const isTouchDevice = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+if (isTouchDevice) document.body.classList.add('touch');
+
+const joyVec = { x: 0, y: 0 };
+const joyBase = document.getElementById('joy-base');
+const joyKnob = document.getElementById('joy-knob');
+let joyPointerId = null;
+const JOY_RANGE = 38;
+
+function updateJoyFromEvent(e) {
+  const rect = joyBase.getBoundingClientRect();
+  let dx = e.clientX - (rect.left + rect.width / 2);
+  let dy = e.clientY - (rect.top + rect.height / 2);
+  const dist = Math.hypot(dx, dy);
+  if (dist > JOY_RANGE) {
+    dx = (dx / dist) * JOY_RANGE;
+    dy = (dy / dist) * JOY_RANGE;
+  }
+  joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  joyVec.x = Math.abs(dx) < 4 ? 0 : dx / JOY_RANGE;
+  joyVec.y = Math.abs(dy) < 4 ? 0 : dy / JOY_RANGE;
+}
+
+function releaseJoy(e) {
+  if (e.pointerId !== joyPointerId) return;
+  joyPointerId = null;
+  joyVec.x = 0;
+  joyVec.y = 0;
+  joyKnob.style.transform = 'translate(-50%, -50%)';
+}
+
+if (joyBase) {
+  joyBase.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    joyPointerId = e.pointerId;
+    joyBase.setPointerCapture(e.pointerId);
+    updateJoyFromEvent(e);
+  });
+  joyBase.addEventListener('pointermove', (e) => {
+    if (e.pointerId === joyPointerId) updateJoyFromEvent(e);
+  });
+  joyBase.addEventListener('pointerup', releaseJoy);
+  joyBase.addEventListener('pointercancel', releaseJoy);
+}
+
+function throwBallFromPlayer() {
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  dir.y = Math.max(dir.y, 0.18);
+  dir.normalize();
+  const p = playerBody.position;
+  spawnSphere(
+    p.x + dir.x * 2.4,
+    p.y + 1.5,
+    p.z + dir.z * 2.4,
+    0.45,
+    2,
+    0x353535,
+    { x: dir.x * 34, y: dir.y * 34, z: dir.z * 34 }
+  );
+}
+
+function bindTap(id, handler) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    handler();
+  });
+}
+
+const btnJump = document.getElementById('btn-jump');
+if (btnJump) {
+  btnJump.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    keys.add('Space');
+  });
+  btnJump.addEventListener('pointerup', () => keys.delete('Space'));
+  btnJump.addEventListener('pointercancel', () => keys.delete('Space'));
+}
+bindTap('btn-throw', throwBallFromPlayer);
+bindTap('btn-box', () => spawnBox((Math.random() - 0.5) * 30, 10, (Math.random() - 0.5) * 30, 1.2, 1.5, palette[Math.floor(Math.random() * palette.length)]));
+bindTap('btn-sphere', () => spawnSphere((Math.random() - 0.5) * 30, 10, (Math.random() - 0.5) * 30, 0.7, 1, palette[Math.floor(Math.random() * palette.length)]));
+bindTap('btn-reset', resetScene);
+
 let camYaw = Math.PI;
 let camPitch = 0.5;
 let camDist = 15;
@@ -243,14 +328,30 @@ let lastX = 0;
 let lastY = 0;
 let clickNDC = { x: 0, y: 0 };
 
+const canvasPointers = new Map();
+let pinchStartDist = 0;
+let pinchStartCamDist = 0;
+
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  downX = e.clientX;
-  downY = e.clientY;
-  lastX = e.clientX;
-  lastY = e.clientY;
+  canvasPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (canvasPointers.size === 1) {
+    dragging = true;
+    downX = e.clientX;
+    downY = e.clientY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+  } else {
+    dragging = false;
+    if (canvasPointers.size === 2) {
+      const pts = [...canvasPointers.values()];
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      pinchStartCamDist = camDist;
+    }
+  }
 });
 addEventListener('pointerup', (e) => {
+  canvasPointers.delete(e.pointerId);
+  if (canvasPointers.size < 2) pinchStartDist = 0;
   if (!dragging) return;
   dragging = false;
   if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) < 6) {
@@ -271,7 +372,17 @@ addEventListener('pointerup', (e) => {
     );
   }
 });
+addEventListener('pointercancel', (e) => canvasPointers.delete(e.pointerId));
 addEventListener('pointermove', (e) => {
+  if (canvasPointers.has(e.pointerId)) canvasPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (canvasPointers.size >= 2) {
+    if (pinchStartDist > 0 && canvasPointers.size === 2) {
+      const pts = [...canvasPointers.values()];
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (d > 0) camDist = Math.min(28, Math.max(7, pinchStartCamDist * (pinchStartDist / d)));
+    }
+    return;
+  }
   if (!dragging) return;
   const dx = e.clientX - lastX;
   const dy = e.clientY - lastY;
@@ -301,11 +412,14 @@ function updatePlayer(dt) {
   if (keys.has('KeyS') || keys.has('ArrowDown')) { mx -= forward.x; mz -= forward.z; }
   if (keys.has('KeyA') || keys.has('ArrowLeft')) { mx -= right.x; mz -= right.z; }
   if (keys.has('KeyD') || keys.has('ArrowRight')) { mx += right.x; mz += right.z; }
+  mx += -joyVec.y * forward.x + joyVec.x * right.x;
+  mz += -joyVec.y * forward.z + joyVec.x * right.z;
   const len = Math.hypot(mx, mz);
   const grounded = clock.elapsedTime - lastGroundedAt < 0.12;
   const power = grounded ? 110 : 35;
   if (len > 0) {
-    playerBody.applyForce(new CANNON.Vec3((mx / len) * power, 0, (mz / len) * power));
+    const strength = Math.min(len, 1);
+    playerBody.applyForce(new CANNON.Vec3((mx / len) * power * strength, 0, (mz / len) * power * strength));
   }
   if (keys.has('Space') && grounded) {
     playerBody.velocity.y = 11;
