@@ -40,6 +40,23 @@
         text-align: right;
       }
       #score span { color: #ffd166; font-weight: bold; }
+      #fs-btn {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: system-ui, sans-serif;
+        cursor: pointer;
+        user-select: none;
+        z-index: 10;
+      }
+      #fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
+      #fs-btn:active { transform: scale(0.97); }
     </style>
   </head>
   <body>
@@ -47,9 +64,11 @@
       <b>Rolling ball playground</b><br />
       <b>WASD / Arrows</b> — move &nbsp; <b>Space</b> — jump<br />
       <b>Click</b> — throw ball &nbsp; <b>R</b> — reset scene<br />
-      <b>1</b> — spawn box &nbsp; <b>2</b> — spawn sphere &nbsp; <b>Drag</b> — orbit camera &nbsp; <b>Scroll</b> — zoom
+      <b>1</b> — spawn box &nbsp; <b>2</b> — spawn sphere &nbsp; <b>Drag</b> — orbit camera &nbsp; <b>Scroll</b> — zoom<br />
+      <b>F</b> — fullscreen (landscape lock on mobile)
     </div>
     <div id="score">Objects: <span id="obj-count">0</span><br />Score: <span id="score-count">0</span></div>
+    <button id="fs-btn">Fullscreen</button>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

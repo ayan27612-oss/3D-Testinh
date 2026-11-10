@@ -364,3 +364,41 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+const fsBtn = document.getElementById('fs-btn');
+const fsRoot = document.documentElement;
+
+function isFullscreen() {
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+async function lockLandscape() {
+  const so = screen.orientation;
+  if (so && typeof so.lock === 'function') {
+    try { await so.lock('landscape'); } catch {}
+  }
+}
+
+async function toggleFullscreen() {
+  if (isFullscreen()) {
+    try { await document.exitFullscreen(); } catch {}
+  } else {
+    try {
+      const req = fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen;
+      if (req) await req.call(fsRoot);
+    } catch {}
+    lockLandscape();
+  }
+}
+
+function onFsChange() {
+  fsBtn.textContent = isFullscreen() ? 'Exit Fullscreen' : 'Fullscreen';
+  if (isFullscreen()) lockLandscape();
+}
+
+fsBtn.addEventListener('click', toggleFullscreen);
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+addEventListener('keydown', (e) => {
+  if (e.code === 'KeyF') toggleFullscreen();
+});
